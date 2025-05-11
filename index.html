@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="es"> <!-- Changed lang to Spanish -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>App de Agenda</title> <!-- Changed title to Spanish -->
+    <!-- Font Awesome CDN for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Basic Reset & Dark Theme */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1c1c1e; /* Dark background */
+            color: #e5e5e7; /* Light text */
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            overscroll-behavior: none; /* Prevent pull-to-refresh */
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 450px; /* Slightly wider */
+            background-color: #2c2c2e; /* Slightly lighter dark shade */
+            display: flex;
+            flex-direction: column;
+            height: 100%; /* Fill available height */
+            position: relative; /* Needed for absolute positioning of the form */
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        /* App Header */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: #2c2c2e;
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+
+        .app-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .app-title span {
+            color: #ff453a; /* Red dot color */
+        }
+
+        .add-button {
+            background-color: #ff453a; /* Red button */
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+            line-height: 30px; /* Center the plus sign */
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .add-button:hover {
+            background-color: #ff6b61;
+        }
+
+        /* --- Calendar Navigation --- */
+        .calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #3a3a3c;
+            flex-shrink: 0;
+            border-bottom: 1px solid #4a4a4e;
+        }
+
+        .calendar-controls button {
+            background: none;
+            border: none;
+            color: #ff9500; /* Orange arrows */
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px 8px; /* Adjusted padding slightly */
+            min-width: 30px; /* Ensure buttons have some width */
+            text-align: center;
+        }
+        .calendar-controls button:disabled {
+             color: #555;
+             cursor: default;
+        }
+
+        #current-month-year {
+            color: #fff;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center; /* Center the text */
+            flex-grow: 1; /* Allow it to take space */
+        }
+
+        /* Group month and year buttons */
+        .month-nav-group, .year-nav-group {
+            display: flex;
+            align-items: center;
+        }
+
+        /* Date Navigation (Scrollable Days) */
+        .date-nav-container {
+            background-color: #2c2c2e;
+            padding: 10px 0 15px 0; /* Add padding bottom */
+            overflow-x: auto;
+            white-space: nowrap; /* Keep items in one line */
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            flex-shrink: 0;
+            scrollbar-width: none; /* Hide scrollbar Firefox */
+        }
+        /* Hide scrollbar Chrome, Safari, Edge */
+        .date-nav-container::-webkit-scrollbar {
+           display: none;
+        }
+
+
+        .date-item {
+            display: inline-block; /* Allow horizontal layout */
+            text-align: center;
+            cursor: pointer;
+            padding: 8px 12px; /* Adjust padding */
+            margin: 0 3px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+            position: relative;
+            vertical-align: top; /* Align items nicely */
+            min-width: 50px; /* Ensure items have some width */
+        }
+
+        .date-item .day-name { /* Was .day */
+            font-size: 10px; /* Smaller day name */
+            font-weight: 500; /* Lighter weight */
+            color: #8e8e93;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .date-item .date-number { /* Was .date */
+            font-size: 16px; /* Slightly smaller date number */
+            font-weight: 600; /* Medium weight */
+            color: #e5e5e7;
+            line-height: 1;
+        }
+
+        .date-item.active {
+             background-color: #ff453a; /* Red background for active */
+        }
+
+        .date-item.active .day-name,
+        .date-item.active .date-number {
+            color: #fff; /* White text on active */
+        }
+
+        /* Dot for events */
+        .date-item.has-events::after {
+             content: '';
+             display: block;
+             width: 4px;
+             height: 4px;
+             background-color: #34c759; /* Green dot for events */
+             border-radius: 50%;
+             position: absolute;
+             bottom: 4px;
+             left: 50%;
+             transform: translateX(-50%);
+        }
+        .date-item.active.has-events::after {
+            background-color: #fff; /* White dot when active */
+        }
+
+
+        /* Timeline */
+        .timeline-container {
+            flex-grow: 1; /* Take remaining space */
+            padding: 20px 15px;
+            overflow-y: auto;
+            position: relative;
+            background-color: #1c1c1e; /* Darker background for timeline */
+             -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        /* Vertical line styling remains similar */
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 55px; /* Adjusted based on timeline-time flex-basis */
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: #444;
+            z-index: 0;
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 1;
+            /* Add a class based on event type for potential future styling */
+        }
+
+        /* --- Event Type Specific Styling (Example) --- */
+        .timeline-item.event-type-meeting .timeline-time::after { background-color: #0a84ff; } /* Blue */
+        .timeline-item.event-type-travel .timeline-time::after { background-color: #34c759; } /* Green */
+        .timeline-item.event-type-personal .timeline-time::after { background-color: #ff9500; } /* Orange */
+        .timeline-item.event-type-reminder .timeline-time::after { background-color: #af52de; } /* Purple */
+        .timeline-item.event-type-generic .timeline-time::after,
+        .timeline-item:not([class*="event-type-"]) .timeline-time::after { background-color: #8e8e93; } /* Default Grey */
+        /* ------------------------------------------- */
+
+
+        .timeline-time {
+            flex-basis: 70px;
+            flex-shrink: 0;
+            text-align: right;
+            padding-right: 25px; /* Space before the vertical line */
+            position: relative;
+        }
+
+        .timeline-time .time { font-size: 16px; font-weight: 600; }
+        .timeline-time .am-pm { font-size: 11px; color: #8e8e93; display: block; }
+
+        .timeline-time::after {
+            content: '';
+            position: absolute;
+            right: -4px; /* Position relative to timeline-time right edge */
+            top: 5px;
+            width: 8px; /* Slightly larger dot */
+            height: 8px;
+            /* background-color: #8e8e93; */ /* Default color - now set by event type */
+            border: 1px solid #1c1c1e; /* Border matching timeline background */
+            border-radius: 50%;
+            z-index: 2;
+        }
+
+        .timeline-content {
+            flex-grow: 1;
+            padding-left: 10px; /* Space after the vertical line */
+        }
+
+        .timeline-content h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+         /* Display event type icon */
+         .timeline-content h3 .event-type-icon {
+            margin-right: 8px;
+            font-size: 14px;
+            color: #bbb; /* Default icon color */
+            opacity: 0.8;
+         }
+         .timeline-item.event-type-meeting .event-type-icon { color: #0a84ff; }
+         .timeline-item.event-type-travel .event-type-icon { color: #34c759; }
+         .timeline-item.event-type-personal .event-type-icon { color: #ff9500; }
+         .timeline-item.event-type-reminder .event-type-icon { color: #af52de; }
+         .timeline-item.event-type-event .event-type-icon { color: #ff2d55; } /* Example for 'event' */
+
+
+        .timeline-content .location,
+        .timeline-content .details {
+            font-size: 13px;
+            color: #8e8e93;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+         .timeline-content .details { align-items: flex-start; }
+         .timeline-content i { width: 14px; text-align: center; margin-right: 3px; color: #8e8e93; }
+         .timeline-content .fa-qrcode { font-size: 24px; }
+
+        .flight-info, .match-info { margin-top: 10px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+        .match-info { gap: 15px; font-weight: bold; }
+        .match-info .team-logo { font-size: 24px; }
+        .match-info .score { font-size: 18px; }
+
+         .event-actions {
+             display: flex;
+             gap: 15px; /* Space between icons */
+         }
+
+        .edit-btn, .delete-btn {
+            cursor: pointer;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+        .edit-btn:hover, .delete-btn:hover { opacity: 1; }
+        .edit-btn { color: #0a84ff; } /* Blue for edit */
+        .delete-btn { color: #ff453a; } /* Red for delete */
+
+         .no-events-message {
+             text-align: center;
+             color: #8e8e93;
+             margin-top: 40px;
+             font-style: italic;
+         }
+
+        /* Add/Edit Event Form */
+        #event-form-container { /* Renamed */
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #3a3a3c;
+            padding: 20px;
+            border-top: 1px solid #444;
+            transform: translateY(100%); /* Start hidden */
+            transition: transform 0.3s ease-in-out;
+            z-index: 10;
+            max-height: 75%; /* Prevent form from covering too much */
+            overflow-y: auto;
+             -webkit-overflow-scrolling: touch;
+        }
+
+        #event-form-container.visible {
+            transform: translateY(0);
+        }
+
+        #event-form h4 {
+            margin-bottom: 15px;
+            color: #fff;
+            text-align: center;
+        }
+
+        #event-form label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 3px;
+            margin-top: 10px; /* Increased top margin slightly */
+        }
+
+        #event-form input[type="text"],
+        #event-form input[type="time"],
+        #event-form input[type="date"],
+        #event-form select /* Added select styling */
+         {
+            width: 100%;
+            padding: 9px; /* Slightly more padding */
+            margin-bottom: 10px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background-color: #2c2c2e;
+            color: #fff;
+            font-size: 14px;
+            appearance: none; /* Remove default appearance */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+        /* Custom arrow for select */
+        #event-form select {
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%23aaa" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 16px; /* Adjust size */
+            padding-right: 30px; /* Make space for arrow */
+        }
+
+
+        #event-form input[type="time"]::-webkit-calendar-picker-indicator,
+        #event-form input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.6);
+            cursor: pointer;
+        }
+
+        .form-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px; /* More space before buttons */
+        }
+
+        #event-form button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        #event-form button[type="submit"] {
+            background-color: #34c759; /* Green */
+            color: white;
+        }
+
+        #event-form button[type="button"] {
+            background-color: #555;
+            color: #ddd;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- App Header -->
+        <div class="app-header">
+            <div class="app-title">AGENDA<span>.</span></div> <!-- Title in Spanish -->
+            <button class="add-button" id="add-event-btn">+</button>
+        </div>
+
+        <!-- Calendar Controls -->
+        <div class="calendar-controls">
+            <!-- Year Controls -->
+            <div class="year-nav-group">
+                <button id="prev-year-btn" title="Año anterior"><i class="fas fa-angles-left"></i></button> <!-- Double arrow -->
+            </div>
+
+             <!-- Month Controls centered -->
+             <div class="month-nav-group">
+                <button id="prev-month-btn" title="Mes anterior"><i class="fas fa-chevron-left"></i></button>
+                <span id="current-month-year">July 2024</span>
+                <button id="next-month-btn" title="Mes siguiente"><i class="fas fa-chevron-right"></i></button>
+             </div>
+
+            <!-- Year Controls -->
+            <div class="year-nav-group">
+                <button id="next-year-btn" title="Año siguiente"><i class="fas fa-angles-right"></i></button> <!-- Double arrow -->
+            </div>
+        </div>
+
+        <!-- Scrollable Date Navigation -->
+        <div class="date-nav-container" id="date-nav">
+            <!-- Dates will be rendered here by JavaScript -->
+        </div>
+
+        <!-- Timeline -->
+        <div class="timeline-container" id="timeline">
+            <!-- Events will be rendered here by JavaScript -->
+        </div>
+
+        <!-- Add/Edit Event Form (Initially Hidden) -->
+        <div id="event-form-container">
+            <form id="event-form">
+                <h4 id="form-title">Añadir Nuevo Evento</h4> <!-- Title in Spanish -->
+                <input type="hidden" id="event-id"> <!-- Hidden field for editing -->
+
+                <label for="event-date">Fecha:</label>
+                <input type="date" id="event-date" required>
+
+                <label for="event-time">Hora:</label>
+                <input type="time" id="event-time" required>
+
+                <label for="event-title">Título:</label>
+                <input type="text" id="event-title" placeholder="Ej., Reunión de equipo" required>
+
+                <label for="event-location">Ubicación/Notas:</label>
+                <input type="text" id="event-location" placeholder="Ej., Sala de conferencias A">
+
+                <!-- NEW Event Type Field -->
+                <label for="event-type">Tipo de Evento:</label>
+                <select id="event-type" required>
+                    <option value="generic">Genérico</option>
+                    <option value="meeting">Reunión</option>
+                    <option value="travel">Viaje</option>
+                    <option value="personal">Personal</option>
+                    <option value="reminder">Recordatorio</option>
+                    <option value="event">Evento Especial</option>
+                    <!-- Add more types as needed -->
+                </select>
+                <!-- ---------------------------- -->
+
+
+                <!-- More complex fields like QR, flight, match details omitted for simplicity -->
+
+                <div class="form-buttons">
+                    <button type="button" id="cancel-event-btn">Cancelar</button>
+                    <button type="submit" id="save-event-btn">Añadir Evento</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+    <script>
+        // --- State Variables ---
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth(); // 0-indexed (Jan=0)
+        let selectedDate = new Date(); // Full Date object for the selected day
+        selectedDate.setHours(0, 0, 0, 0); // Normalize to start of day
+
+        let editingEventId = null; // To track if we are editing an existing event
+
+        // --- Event Data Store ---
+        // Using YYYY-MM-DD as keys for efficient lookup
+        // Added 'type' to example data
+        let eventsData = {
+             "2024-07-26": [ // Use a plausible future date or current date for example
+                {
+                    id: Date.now() + 1, // Unique ID
+                    time: "09:00", // 24hr format best for sorting
+                    title: "Reunión Rápida UI",
+                    location: "Bergmannstraße, Berlin",
+                    details: [{ type: "qr", text: "Check-in QR", subtext: "Seat 25C" }],
+                    type: 'meeting' // <-- Added type
+                },
+                {
+                    id: Date.now() + 2,
+                    time: "11:00",
+                    title: "Aeropuerto Berlin",
+                    location: "13405, Berlin",
+                    details: [{ type: "flight", from: "BER", to: "LON", gate: "Gate 23B" }],
+                    type: 'travel' // <-- Added type
+                },
+                {
+                    id: Date.now() + 3,
+                    time: "21:45", // Use 24hr
+                    title: "Chelsea - Barcelona",
+                    location: "Stamford Bridge, London",
+                    details: [{ type: "match", team1: "Chelsea", team2: "Barcelona", score: "2-2" }],
+                    type: 'event' // <-- Added type
+                },
+                 {
+                    id: Date.now() + 4,
+                    time: "23:55", // Use 24hr
+                    title: "Aeropuerto Londres",
+                    location: "Hartmann Rd, London",
+                    details: [{ type: "flight", from: "LON", to: "BER", gate: "Gate 21A" }],
+                    type: 'travel' // <-- Added type
+                 }
+             ],
+             // Add another date for testing
+             [`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`]: [
+                {
+                    id: Date.now() + 5,
+                    time: "14:00",
+                    title: "Llamada con cliente",
+                    location: "Zoom",
+                    details: [],
+                    type: 'meeting'
+                },
+                {
+                    id: Date.now() + 6,
+                    time: "18:30",
+                    title: "Comprar entradas cine",
+                    location: "",
+                    details: [],
+                    type: 'reminder'
+                }
+            ]
+        };
+
+        // --- DOM Elements ---
+        const timelineContainer = document.getElementById('timeline');
+        const dateNavContainer = document.getElementById('date-nav');
+        const currentMonthYearDisplay = document.getElementById('current-month-year');
+        const prevMonthBtn = document.getElementById('prev-month-btn');
+        const nextMonthBtn = document.getElementById('next-month-btn');
+        const prevYearBtn = document.getElementById('prev-year-btn'); // New Year Button
+        const nextYearBtn = document.getElementById('next-year-btn'); // New Year Button
+        const addEventBtn = document.getElementById('add-event-btn');
+        const eventFormContainer = document.getElementById('event-form-container');
+        const eventForm = document.getElementById('event-form');
+        const cancelEventBtn = document.getElementById('cancel-event-btn');
+        const formTitle = document.getElementById('form-title');
+        const saveEventBtn = document.getElementById('save-event-btn');
+        const eventIdInput = document.getElementById('event-id');
+        const eventDateInput = document.getElementById('event-date');
+        const eventTimeInput = document.getElementById('event-time');
+        const eventTitleInput = document.getElementById('event-title');
+        const eventLocationInput = document.getElementById('event-location');
+        const eventTypeSelect = document.getElementById('event-type'); // New Type Select
+
+
+        // --- Utility Functions ---
+        function formatDateKey(date) {
+            // Returns date in YYYY-MM-DD format
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatDisplayTime(timeStr) {
+            // Converts HH:mm (24hr) to h:mm AM/PM using locale settings
+            if (!timeStr) return "";
+            const [hour, minute] = timeStr.split(':');
+            const hourInt = parseInt(hour);
+            const date = new Date(); // Use a dummy date
+            date.setHours(hourInt, parseInt(minute), 0, 0); // Set hours and minutes
+
+            // Use Intl.DateTimeFormat for robust localization
+            try {
+                 const formatter = new Intl.DateTimeFormat(navigator.language, {
+                     hour: 'numeric',
+                     minute: '2-digit',
+                     hour12: true // Explicitly request 12-hour format with AM/PM
+                 });
+                 return formatter.format(date);
+            } catch (e) {
+                 // Fallback for older browsers or unexpected errors
+                 console.warn("Intl.DateTimeFormat not fully supported or failed, using fallback time formatting.");
+                 const amPm = hourInt >= 12 ? 'PM' : 'AM';
+                 let displayHour = hourInt % 12;
+                 if (displayHour === 0) displayHour = 12; // Handle midnight/noon
+                 return `${displayHour}:${minute} ${amPm}`;
+            }
+        }
+
+
+        function getEventTypeIcon(type) {
+             switch (type) {
+                 case 'meeting': return 'fa-solid fa-users';
+                 case 'travel': return 'fa-solid fa-plane-departure';
+                 case 'personal': return 'fa-solid fa-user';
+                 case 'reminder': return 'fa-solid fa-bell';
+                 case 'event': return 'fa-solid fa-star'; // Changed 'event' type icon
+                 default: return 'fa-regular fa-circle-dot'; // Generic icon
+             }
+        }
+
+        // --- Core Rendering Functions ---
+
+        // Function to render the scrollable days navigation
+        function renderCalendarNav() {
+            dateNavContainer.innerHTML = ''; // Clear previous days
+
+            // Use Spanish month names
+            const monthName = new Date(currentYear, currentMonth).toLocaleDateString('es-ES', { month: 'long' });
+            // Capitalize the first letter of the month
+            const capitalizedMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+            currentMonthYearDisplay.textContent = `${capitalizedMonthName} ${currentYear}`;
+
+
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const today = new Date(); // For potential 'today' styling later
+            today.setHours(0, 0, 0, 0);
+
+            let activeItem = null; // To scroll into view
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(currentYear, currentMonth, day);
+                // Use Spanish short day names
+                const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.',''); // Remove trailing dot if present
+                const dateKey = formatDateKey(date);
+
+                const item = document.createElement('div');
+                item.classList.add('date-item');
+                item.dataset.day = day; // Store day number
+
+                item.innerHTML = `
+                    <div class="day-name">${dayName.toUpperCase()}</div> <!-- Make uppercase -->
+                    <div class="date-number">${day}</div>
+                `;
+
+                // Check if this date has events
+                if (eventsData[dateKey] && eventsData[dateKey].length > 0) {
+                    item.classList.add('has-events');
+                }
+
+                // Highlight the selected date
+                if (date.getTime() === selectedDate.getTime()) {
+                    item.classList.add('active');
+                    activeItem = item; // Store the active item
+                }
+
+                 // Add listener for selecting a date
+                item.addEventListener('click', () => handleDateSelect(day));
+
+                dateNavContainer.appendChild(item);
+            }
+
+            // Scroll the active item into view
+            if (activeItem) {
+                 // Use timeout to ensure layout is complete before scrolling
+                 setTimeout(() => {
+                    activeItem.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                 }, 100);
+            }
+        }
+
+
+        // Function to render the timeline for the selected date
+        function renderTimeline() {
+            timelineContainer.innerHTML = ''; // Clear existing timeline
+            const dateKey = formatDateKey(selectedDate);
+            const eventsForDay = eventsData[dateKey] || [];
+
+             if (eventsForDay.length === 0) {
+                 timelineContainer.innerHTML = `<div class="no-events-message">No hay eventos programados para este día.</div>`; // Message in Spanish
+                 return;
+             }
+
+            // Sort events by time before rendering
+            const sortedEvents = eventsForDay.sort((a, b) => {
+                 // Robust time comparison: handle potential missing times or invalid formats
+                 const timeA = a.time || "00:00";
+                 const timeB = b.time || "00:00";
+                 return timeA.localeCompare(timeB);
+            });
+
+            sortedEvents.forEach(event => {
+                const item = document.createElement('div');
+                item.classList.add('timeline-item');
+                // Add type class for specific styling
+                item.classList.add(`event-type-${event.type || 'generic'}`);
+                item.dataset.id = event.id; // Store ID for actions
+
+                let detailsHtml = '';
+                 // Simplified details rendering - extend if needed
+                if (event.details && event.details.length > 0) {
+                     event.details.forEach(detail => {
+                        if (detail.type === 'qr') {
+                            detailsHtml += `<div class="details"><i class="fa-solid fa-qrcode"></i> <div>${detail.text}<br><small>${detail.subtext || ''}</small></div></div>`;
+                        } else if (detail.type === 'flight') {
+                             detailsHtml += `<div class="flight-info"><i class="fa-solid fa-plane"></i> ${detail.from} <i class="fa-solid fa-arrow-right"></i> ${detail.to}<span style="margin-left: auto; color: #8e8e93;">${detail.gate}</span></div>`;
+                        } else if (detail.type === 'match') {
+                            detailsHtml += `<div class="match-info">
+                                <i class="fa-solid fa-shield-halved team-logo"></i> <!-- Placeholder -->
+                                <span class="score">${detail.score}</span>
+                                <i class="fa-solid fa-shield team-logo"></i> <!-- Placeholder -->
+                            </div>`;
+                        } else { // Generic detail display if type is unknown
+                           detailsHtml += `<div class="details"><i class="fa-solid fa-info-circle"></i> ${detail.text || ''}</div>`;
+                        }
+                     });
+                }
+
+                const displayTime = formatDisplayTime(event.time); // Get locale-aware AM/PM time
+                const timeParts = displayTime.split(/(\s)/); // Split carefully to keep spaces for AM/PM detection
+                const timeValue = timeParts[0]; // The HH:MM part
+                const timePeriod = timeParts.slice(1).join('').trim(); // The AM/PM part (or empty)
+
+                const eventTypeIconClass = getEventTypeIcon(event.type);
+
+                item.innerHTML = `
+                    <div class="timeline-time">
+                        <span class="time">${timeValue}</span>
+                        <span class="am-pm">${timePeriod}</span>
+                    </div>
+                    <div class="timeline-content">
+                        <h3>
+                           <span> <!-- Wrap title and icon -->
+                             <i class="event-type-icon ${eventTypeIconClass}" title="${event.type || 'generic'}"></i>
+                             ${event.title}
+                           </span>
+                           <div class="event-actions">
+                                <span class="edit-btn" title="Editar Evento"><i class="fa-solid fa-pencil"></i></span>
+                                <span class="delete-btn" title="Eliminar Evento"><i class="fa-solid fa-trash-can"></i></span>
+                           </div>
+                        </h3>
+                        ${event.location ? `<div class="location"><i class="fa-solid fa-location-dot"></i> ${event.location}</div>` : ''}
+                        ${detailsHtml}
+                    </div>
+                `;
+
+                // Add event listeners for edit/delete buttons within this item
+                item.querySelector('.edit-btn').addEventListener('click', () => handleEditEvent(event.id));
+                item.querySelector('.delete-btn').addEventListener('click', () => handleDeleteEvent(event.id));
+
+                timelineContainer.appendChild(item);
+            });
+        }
+
+
+        // --- Event Handling Functions ---
+
+        function handleDateSelect(day) {
+            // Check if the clicked day is already selected to avoid unnecessary re-renders
+            const newSelectedDate = new Date(currentYear, currentMonth, day);
+            newSelectedDate.setHours(0, 0, 0, 0);
+            if (newSelectedDate.getTime() !== selectedDate.getTime()) {
+                selectedDate = newSelectedDate;
+                renderCalendarNav(); // Update highlight
+                renderTimeline(); // Show events for the new date
+            }
+        }
+
+        function changeMonth(offset) {
+            currentMonth += offset;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            // Select the first day of the new month by default,
+            // but check if the previously selected day exists in the new month
+            const currentSelectedDay = selectedDate.getDate();
+            const daysInNewMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const newDay = Math.min(currentSelectedDay, daysInNewMonth); // Keep day if possible
+
+            selectedDate = new Date(currentYear, currentMonth, newDay);
+            selectedDate.setHours(0, 0, 0, 0);
+            renderCalendarNav();
+            renderTimeline();
+        }
+
+         // --- NEW: Function to change the year ---
+        function changeYear(offset) {
+            currentYear += offset;
+            // Keep the same month and day if possible
+            const currentSelectedDay = selectedDate.getDate();
+            const currentSelectedMonth = selectedDate.getMonth(); // Use current month, not the state variable 'currentMonth' directly
+            const daysInNewMonthYear = new Date(currentYear, currentSelectedMonth + 1, 0).getDate();
+            const newDay = Math.min(currentSelectedDay, daysInNewMonthYear);
+
+            // Update the main state variables AFTER calculating the new date
+            currentMonth = currentSelectedMonth;
+            selectedDate = new Date(currentYear, currentMonth, newDay);
+            selectedDate.setHours(0, 0, 0, 0);
+
+            renderCalendarNav();
+            renderTimeline();
+        }
+
+        // Function to show/hide the event form
+        function toggleEventForm(show) {
+             if (show) {
+                 eventFormContainer.classList.add('visible');
+             } else {
+                 eventFormContainer.classList.remove('visible');
+                 // Delay reset slightly to allow animation to finish smoothly
+                 setTimeout(() => {
+                    eventForm.reset(); // Clear form fields
+                    eventIdInput.value = ''; // Explicitly clear hidden ID
+                    editingEventId = null; // Reset editing state
+                    formTitle.textContent = "Añadir Nuevo Evento"; // Title in Spanish
+                    saveEventBtn.textContent = "Añadir Evento"; // Button text in Spanish
+                 }, 300); // Match transition duration
+             }
+        }
+
+         // Function to handle form submission (Add or Update)
+        function handleSaveEvent(e) {
+             e.preventDefault(); // Prevent page reload
+
+             const id = eventIdInput.value ? parseInt(eventIdInput.value) : null;
+             const dateStr = eventDateInput.value; // YYYY-MM-DD
+             const timeStr = eventTimeInput.value; // HH:mm
+             const title = eventTitleInput.value.trim();
+             const location = eventLocationInput.value.trim();
+             const type = eventTypeSelect.value; // Get selected type
+
+             if (!dateStr || !timeStr || !title || !type) { // Added type check
+                 alert("Por favor, completa Fecha, Hora, Título y Tipo de Evento."); // Message in Spanish
+                 return;
+             }
+
+             // Safari compatibility: Ensure date is parsed correctly regardless of local timezone issues
+             const [year, month, day] = dateStr.split('-').map(Number);
+             const eventDate = new Date(year, month - 1, day); // Month is 0-indexed
+             eventDate.setHours(0, 0, 0, 0); // Normalize
+
+             // Check if date conversion resulted in a valid date
+             if (isNaN(eventDate.getTime())) {
+                alert("La fecha introducida no es válida."); // Message in Spanish
+                return;
+             }
+
+             const targetDateKey = formatDateKey(eventDate);
+
+             const eventData = {
+                 id: id || Date.now(), // Use existing ID or generate new one
+                 time: timeStr,
+                 title: title,
+                 location: location,
+                 type: type, // Save the type
+                 details: [] // Keep details simple for this example, load/save if needed later
+             };
+
+
+             if (editingEventId) {
+                 // --- Editing Existing Event ---
+                 let found = false;
+                 let originalDateKey = null;
+                 // Find the original event (might be on a different date if date was changed)
+                 for (const dateKey in eventsData) {
+                     const index = eventsData[dateKey].findIndex(ev => ev.id === editingEventId);
+                     if (index !== -1) {
+                         originalDateKey = dateKey;
+                         // Retrieve existing details before removing (if needed later)
+                         // eventData.details = eventsData[originalDateKey][index].details; // Uncomment if you need to preserve details
+
+                         // Remove from original position
+                         eventsData[originalDateKey].splice(index, 1);
+                         if (eventsData[originalDateKey].length === 0) {
+                              delete eventsData[originalDateKey]; // Clean up empty date arrays
+                         }
+                         found = true;
+                         break; // Exit loop once found and removed
+                     }
+                 }
+
+                 if (!found) {
+                     console.error("Evento original no encontrado para editar:", editingEventId);
+                     toggleEventForm(false);
+                     return; // Stop if original wasn't found
+                 }
+
+                 // Add the updated event to the target date (potentially new date)
+                 if (!eventsData[targetDateKey]) {
+                     eventsData[targetDateKey] = [];
+                 }
+                 eventsData[targetDateKey].push(eventData); // Add the modified event
+
+             } else {
+                 // --- Adding New Event ---
+                 if (!eventsData[targetDateKey]) {
+                     eventsData[targetDateKey] = []; // Initialize array if date is new
+                 }
+                 eventsData[targetDateKey].push(eventData);
+             }
+
+             // Update UI
+             // Set the view to the date of the event just added/edited
+             selectedDate = eventDate;
+             currentYear = selectedDate.getFullYear();
+             currentMonth = selectedDate.getMonth();
+
+             renderCalendarNav(); // Update date highlights and event dots
+             renderTimeline(); // Refresh timeline for the (potentially new) selected date
+             toggleEventForm(false); // Hide form
+        }
+
+
+        // Function to prepare and show the form for editing
+        function handleEditEvent(eventId) {
+             editingEventId = eventId;
+             let eventToEdit = null;
+             let eventDateKey = null;
+
+             // Find the event in our data structure
+             Object.keys(eventsData).forEach(dateKey => {
+                 const foundEvent = eventsData[dateKey].find(ev => ev.id === eventId);
+                 if (foundEvent) {
+                     eventToEdit = foundEvent;
+                     eventDateKey = dateKey;
+                     // No need to continue searching once found
+                 }
+             });
+
+             if (eventToEdit) {
+                 // Pre-fill the form
+                 formTitle.textContent = "Editar Evento"; // Title in Spanish
+                 saveEventBtn.textContent = "Guardar Cambios"; // Button text in Spanish
+                 eventIdInput.value = eventToEdit.id;
+                 eventDateInput.value = eventDateKey; // YYYY-MM-DD
+                 eventTimeInput.value = eventToEdit.time; // HH:mm
+                 eventTitleInput.value = eventToEdit.title;
+                 eventLocationInput.value = eventToEdit.location || '';
+                 eventTypeSelect.value = eventToEdit.type || 'generic'; // Pre-select the type
+
+                 toggleEventForm(true); // Show the form
+             } else {
+                 console.error("Evento no encontrado para editar:", eventId);
+                 editingEventId = null; // Reset if not found
+             }
+        }
+
+        // Function to handle event deletion
+        function handleDeleteEvent(eventId) {
+            let eventToDelete = null;
+            let dateKeyOfEvent = null;
+
+            // Find the event and its date key across all dates
+            for (const dateKey in eventsData) {
+                 const index = eventsData[dateKey].findIndex(event => event.id === eventId);
+                 if (index !== -1) {
+                     eventToDelete = eventsData[dateKey][index];
+                     dateKeyOfEvent = dateKey;
+                     break; // Found it
+                 }
+            }
+
+            if (!eventToDelete) {
+                 console.warn("Event ID not found for deletion:", eventId);
+                 return; // Event doesn't exist
+            }
+
+             // Optional: Confirmation dialog in Spanish
+            if (confirm(`¿Estás seguro de que quieres eliminar "${eventToDelete.title}"?`)) { // Message in Spanish
+                 // Find the index again (safer in case data changed)
+                 const index = eventsData[dateKeyOfEvent].findIndex(event => event.id === eventId);
+                 if (index !== -1) {
+                      eventsData[dateKeyOfEvent].splice(index, 1); // Remove the event
+
+                      // If the array for this date becomes empty, remove the key
+                      if (eventsData[dateKeyOfEvent].length === 0) {
+                          delete eventsData[dateKeyOfEvent];
+                      }
+
+                      // Re-render the currently viewed date
+                      // It might have changed visually if the deleted event was on this date
+                      // Or the dot on the calendar nav might need updating
+                      renderCalendarNav();
+                      renderTimeline(); // Re-render the current view
+                 } else {
+                      console.warn("Event ID disappeared before deletion:", eventId);
+                 }
+            }
+        }
+
+
+        // --- Initial Setup & Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set initial state
+            selectedDate = new Date(); // Ensure selectedDate is today initially
+            selectedDate.setHours(0, 0, 0, 0);
+            currentYear = selectedDate.getFullYear();
+            currentMonth = selectedDate.getMonth();
+
+            // Initial Render
+            renderCalendarNav();
+            renderTimeline();
+
+            // Month Navigation Listeners
+            prevMonthBtn.addEventListener('click', () => changeMonth(-1));
+            nextMonthBtn.addEventListener('click', () => changeMonth(1));
+
+            // --- NEW: Year Navigation Listeners ---
+            prevYearBtn.addEventListener('click', () => changeYear(-1));
+            nextYearBtn.addEventListener('click', () => changeYear(1));
+
+            // Add Event Button Listener
+            addEventBtn.addEventListener('click', () => {
+                 editingEventId = null; // Ensure we are adding, not editing
+                 formTitle.textContent = "Añadir Nuevo Evento"; // Title in Spanish
+                 saveEventBtn.textContent = "Añadir Evento"; // Button text in Spanish
+                 eventForm.reset(); // Clear fields first
+                 eventIdInput.value = ''; // Clear hidden ID field
+                 // Set default date in form to currently selected date *after* reset
+                 eventDateInput.value = formatDateKey(selectedDate);
+                 eventTypeSelect.value = 'generic'; // Default type
+                 toggleEventForm(true);
+            });
+
+            // Form Listeners
+            cancelEventBtn.addEventListener('click', () => toggleEventForm(false));
+            eventForm.addEventListener('submit', handleSaveEvent);
+
+        });
+
+    </script>
+
+</body>
+</html>
